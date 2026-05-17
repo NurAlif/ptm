@@ -214,7 +214,6 @@ Each entry in the journal list matches the `Journal` schema. Below is a sample j
 }
 ```
 
-```
 
 ---
 
