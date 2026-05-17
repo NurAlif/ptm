@@ -9,17 +9,16 @@ An advanced, end-to-end cognitive-behavioral analysis system designed to ingest 
 
 ## 🌟 What You Can Do With This Application
 
-1. **Dashboard Analytics**: View real-time aggregated metrics such as student journal completion counts, daily/weekly statistics, word counts, and writing time spent.
-2. **Interactive Multi-Layered Graph Explorations**: Explore a student's structured thinking patterns using an interactive 2D/3D Force-Directed Graph. Zoom, filter, and inspect specific nodes across the 4 levels of cognitive abstraction.
-3. **Hyperparameter Control & Parameter Customization**: Fine-tune the clustering and abstraction settings directly from the UI, adjusting components such as UMAP, HDBSCAN, or target clusters per layer.
-4. **Real-time Pipeline Tracking**: Stream detailed build logs in real-time via Server-Sent Events (SSE) while the backend runs complex clustering and LLM synthesis.
-5. **Smart Semantic Refinement (RAG Engine)**: Automatically align the cognitive graph when new feedback or structured QA is introduced, updating existing nodes or generating novel insights.
+1. **Model Viewing**: Explore a student's structured thinking patterns using an interactive 2D/3D Force-Directed Graph. Zoom, filter, and inspect specific nodes across the 4 levels of cognitive abstraction.
+2. **Model Building**: Fine-tune the clustering and abstraction settings directly from the UI, adjusting components such as UMAP, HDBSCAN, or target clusters per layer and build the model.
 
 ---
 
 ## 📂 Project Structure
 
 Below is an overview of the key directories and files in this repository:
+
+Put the model data in `admin_back/app/static/datasets` and put the raw journal in `admin_back/app/static/journals` .
 
 ```text
 d:\GTFI\
@@ -45,6 +44,9 @@ d:\GTFI\
 │       ├── schemas.py              # Pydantic schemas for API validation
 │       ├── security.py             # Security, hashing, and JWT utilities
 │       ├── graph_viewer.html       # D3/3D-Force-Graph explorer served inside iframes
+│       ├── static/
+│       │   ├── datasets            # Holds builded model and logs and other model building matters (MODEL is HERE) 
+│       │   └── journals            # holds raw journals data
 │       ├── routers/
 │       │   ├── auth.py             # Authentication router (Login/Refresh)
 │       │   └── models.py           # Dataset, building, and graph APIs
@@ -56,6 +58,7 @@ d:\GTFI\
 │           ├── graph_operations.py # IO and node utilities
 │           ├── augmentation.py     # RAG-based model updating engine
 │           └── prompts.py          # Strict system and prompt templates
+        
 │
 └── admin_front/                    # Vite + Vue 3 Frontend Application
     ├── package.json                # Frontend dependencies and scripts
@@ -189,7 +192,7 @@ Open your browser and navigate to `http://localhost:5291` to access the Admin Pa
 ## 📊 Database & Dataset Format
 
 ### Zero-Login & Database-Free Architecture
-Rather than relying on a heavy SQL database, this application implements a custom **JSON Database Engine (`database.py`)** that manages data models dynamically. It reads and writes directly from highly-optimized JSON documents located in `admin_back/app/static/datasets`:
+The application implements a custom **JSON Database Engine (`database.py`)** that manages data models dynamically. It reads and writes directly from highly-optimized JSON documents located in `admin_back/app/static/datasets`:
 
 1. **`users.json`**: Holds the administrator and student accounts.
 2. **`journals.json`**: Contains the full collection of student narrative journals.
@@ -211,19 +214,6 @@ Each entry in the journal list matches the `Journal` schema. Below is a sample j
 }
 ```
 
-### 2. User Dataset Format (`users.json`)
-```json
-{
-  "id": 6,
-  "username": "alif123",
-  "email": "alif@example.com",
-  "realname": "Nur Alif",
-  "student_id": "NDHU2026006",
-  "group": "A",
-  "hashed_password": "$bcrypt-hashed-password-string$",
-  "is_admin": false,
-  "created_at": "2026-05-01T10:00:00.000000"
-}
 ```
 
 ---
@@ -270,23 +260,8 @@ flowchart TD
 
 ---
 
-## 🔍 Retrieval-Augmented Generation (RAG) & Model Alignment Engine
-
-The pipeline implements an advanced **RAG Augmentation Engine (`augmentation.py`)** designed to keep the student's cognitive map aligned with ground truth feedback without triggering expensive rebuilds.
-
-### How the RAG Loop Operates:
-1. **Semantic Indexing**: When a user submits a ground-truth Q&A pair from their latest evaluation feedback, the `AugmentationEngine` loads the SentenceTransformer (`all-MiniLM-L6-v2`).
-2. **Dense Vector Encoding**: The engine embeds the new ground truth QA pair alongside all existing nodes in the active student model.
-3. **Cosine Similarity Search**: It performs a rapid semantic search using cosine similarity:
-   $$\text{Similarity} = \frac{\mathbf{u} \cdot \mathbf{v}}{\|\mathbf{u}\| \|\mathbf{v}\|}$$
-   This retrieves the top $k=5$ most semantically relevant context nodes in the active graph.
-4. **LLM Augmentation Decision**: The prompt passes both the ground truth and the retrieved nodes to Google's Gemini model. The model analyzes the relationship and decides on a single action:
-   - **`KEEP`**: The new feedback is already fully and correctly represented. No changes.
-   - **`MODIFY`**: The feedback refines or corrects an existing node. The LLM provides updated text to replace the existing content.
-   - **`DELETE`**: The feedback proves a specific node is inaccurate or obsolete.
-   - **`ADD`**: The feedback introduces a novel behavior or cognitive pattern. A new node (`L{layer}_AUG_...`) is instantiated and linked.
-
-This semantic RAG pipeline ensures that the thinking model remains up-to-date, accurate, and responsive to ongoing feedback with zero downtime.
+## 🔍 How To Use PTM?
+PTM is simply a structured hirarchical database of a person's cognitive. To use it simply implement RAG of the node embedings or use its node labels as a method to query using LLM for better performance.  
 
 ---
 
