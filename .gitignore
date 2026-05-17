@@ -1,0 +1,46 @@
+# Python virtual environments & packages
+.venv/
+venv/
+env/
+ENV/
+build/
+dist/
+*.egg-info/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Node / Frontend dependencies & builds
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+.nuxt/
+
+# Logs and databases
+*.log
+backend.log
+frontend.log
+standalone.log
+fill_output.log
+*.sqlite
+*.db
+
+# OS / IDE Caches
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# Big zip files and legacy backups
+*.zip
+*.rar
+*.tar.gz
+*.xlsx
+*.csv

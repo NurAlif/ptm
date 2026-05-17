@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gemini-api-client"
+version = "0.1.0"
+authors = [
+  { name="Your Name", email="you@example.com" },
+]
+description = "A simple and reliable client for interacting with a local Gemini API endpoint."
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "requests>=2.20.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/pypa/sampleproject" # Replace with your project's URL
+"Bug Tracker" = "https://github.com/pypa/sampleproject/issues" # Replace with your project's URL

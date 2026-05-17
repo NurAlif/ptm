@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Graph Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            /* slate-900 */
+        }
+
+        .link {
+            stroke-opacity: 0.2;
+            transition: stroke-opacity 0.3s, stroke 0.3s;
+        }
+
+        .node {
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        .node-label {
+            pointer-events: none;
+            font-size: 10px;
+            fill: #e2e8f0;
+            /* slate-200 */
+        }
+
+        .layer-title {
+            font-size: 14px;
+            font-weight: 600;
+            fill: #64748b;
+            /* slate-500 */
+            text-anchor: middle;
+            cursor: pointer;
+            transition: fill 0.2s;
+        }
+
+        .layer-title:hover {
+            fill: #94a3b8;
+            /* slate-400 */
+        }
+
+        .dimension-box {
+            fill: #475569;
+            /* slate-600 */
+            fill-opacity: 0.1;
+            stroke: #64748b;
+            /* slate-500 */
+            stroke-width: 1px;
+            stroke-dasharray: 3 3;
+            rx: 8;
+            ry: 8;
+        }
+
+        .dimension-label {
+            font-size: 11px;
+            font-weight: 500;
+            fill: #94a3b8;
+            /* slate-400 */
+            text-anchor: middle;
+            pointer-events: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+    </style>
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+</head>
+
+<body class="bg-slate-900 text-slate-200 h-full overflow-hidden flex flex-col">
+
+    <header class="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700 p-3 shadow-lg z-20">
+        <div class="container mx-auto flex items-center justify-between">
+            <h1 class="text-xl font-bold text-white">Knowledge Graph Explorer</h1>
+            <div class="flex items-center space-x-8">
+                <div class="flex items-center space-x-2">
+                    <div id="status-indicator" class="w-3 h-3 rounded-full bg-yellow-500" title="Connecting..."></div>
+                    <span id="status-text" class="text-sm text-slate-400">Connecting...</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <label for="dataset-selector" class="text-sm font-medium">Dataset (User):</label>
+                    <select id="dataset-selector"
+                        class="bg-slate-700 border border-slate-600 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none transition"></select>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow flex overflow-hidden">
+        <aside id="sidebar"
+            class="w-1/3 max-w-md h-full bg-slate-800/70 border-r border-slate-700 flex flex-col p-4 shadow-2xl z-10">
+            <div id="controls-panel" class="mb-4">
+                <h2 class="text-lg font-semibold border-b border-slate-600 pb-2 mb-3">Controls</h2>
+                <div class="space-y-2">
+                    <p class="text-sm text-slate-400">Filter Layers:</p>
+                    <!-- Changed grid to flex-wrap for better spacing with counts -->
+                    <div id="layer-toggles" class="flex flex-wrap gap-x-4 gap-y-2 text-sm"></div>
+                </div>
+
+                <div class="space-y-2 mt-4">
+                    <p class="text-sm text-slate-400">Model View:</p>
+                    <div class="flex items-center space-x-4">
+                        <label class="flex items-center space-x-2 cursor-pointer text-sm">
+                            <input type="radio" name="model-view" value="Standard"
+                                class="h-4 w-4 bg-slate-600 border-slate-500 text-sky-500 focus:ring-sky-500" checked>
+                            <span>Standard</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer text-sm">
+                            <input type="radio" name="model-view" value="HL"
+                                class="h-4 w-4 bg-slate-600 border-slate-500 text-sky-500 focus:ring-sky-500">
+                            <span>HL</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <label for="show-labels-toggle" class="flex items-center space-x-2 cursor-pointer text-sm">
+                        <input type="checkbox" id="show-labels-toggle"
+                            class="h-4 w-4 rounded bg-slate-600 border-slate-500 text-sky-500 focus:ring-sky-500"
+                            checked>
+                        <span>Show Labels</span>
+                    </label>
+                </div>
+            </div>
+            <div id="info-panel" class="flex-grow overflow-y-auto pr-2">
+                <h2 id="info-title" class="text-lg font-semibold border-b border-slate-600 pb-2 mb-3">Information</h2>
+                <div id="info-content" class="text-sm text-slate-300 space-y-4">
+                    <p class="text-slate-500 italic">Select a dataset to begin. Click a node for details.</p>
+                </div>
+            </div>
+        </aside>
+
+        <div id="graph-container" class="flex-grow h-full relative">
+            <div id="overlay" class="absolute inset-0 bg-slate-900/80 flex items-center justify-center z-50"></div>
+            <svg id="graph-svg" class="w-full h-full"></svg>
+        </div>
+    </main>
+
+    <script>
+
+
+        const API_BASE_URL = window.location.origin + '/api/models';
+        const LAYER_COLORS = ['#fb7185', '#fbbf24', '#34d399', '#60a5fa', '#c084fc'];
+        const svg = d3.select("#graph-svg");
+        let width = document.getElementById('graph-container').clientWidth;
+        let height = document.getElementById('graph-container').clientHeight;
+        svg.attr("width", width).attr("height", height);
+
+        const infoTitle = document.getElementById('info-title');
+        const infoContent = document.getElementById('info-content');
+        const datasetSelector = document.getElementById('dataset-selector');
+        const layerTogglesContainer = document.getElementById('layer-toggles');
+        const showLabelsToggle = document.getElementById('show-labels-toggle');
+
+        const colorScale = d3.scaleOrdinal(LAYER_COLORS);
+        let allGraphData = { nodes: [], links: [], dimensions: {} };
+        let currentSelectedNode = null;
+        let nodeMap = new Map();
+
+        const zoom = d3.zoom().on("zoom", (event) => g.attr("transform", event.transform));
+        svg.call(zoom);
+        const g = svg.append("g");
+        const gDimensionBoxes = g.append("g").attr("class", "dimension-boxes");
+        const gLinks = g.append("g").attr("class", "links");
+        const gLayerTitles = g.append("g").attr("class", "layer-titles");
+        const gNodes = g.append("g").attr("class", "nodes");
+        const gLabels = g.append("g").attr("class", "labels");
+
+        async function fetchDatasets() {
+            setStatus('connecting', 'Connecting...');
+            showOverlay('loading', 'Connecting to server...');
+            try {
+                const response = await fetch(`${API_BASE_URL}/datasets`);
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const datasets = await response.json();
+
+                datasetSelector.innerHTML = '';
+                datasets.forEach(dataset => {
+                    const option = document.createElement('option');
+                    option.value = dataset.id; // The value is the ID
+                    option.textContent = dataset.username; // The text is the name
+                    datasetSelector.appendChild(option);
+                });
+
+                if (datasets.length > 0) {
+                    setStatus('ok', 'Connected');
+                    await loadGraph(datasets[0].id);
+                } else {
+                    setStatus('error', 'No Models');
+                    showOverlay('error', `No models found. Please build a model for a user first.`);
+                }
+            } catch (error) {
+                console.error("Failed to fetch datasets:", error);
+                setStatus('error', 'Connection Failed');
+                showOverlay('error', `Error connecting to the backend. Please ensure the admin server is running.`, true);
+            }
+        }
+
+        async function loadGraph(datasetName) {
+            showOverlay('loading', `Loading model for User '${datasetName}'...`);
+            try {
+                const response = await fetch(`${API_BASE_URL}/graph-data?dataset=${datasetName}`);
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status} - ${await response.text()}`);
+                allGraphData = await response.json();
+
+                nodeMap.clear();
+                allGraphData.nodes.forEach(n => {
+                    n.id = n.node_id || n.id;
+                    nodeMap.set(n.id, n);
+                });
+
+                const validLinks = allGraphData.links.filter(l => nodeMap.has(l.source) && nodeMap.has(l.target));
+                validLinks.forEach(l => {
+                    l.source = nodeMap.get(l.source);
+                    l.target = nodeMap.get(l.target);
+                });
+                allGraphData.links = validLinks;
+
+                calculateStaticLayout(allGraphData.nodes);
+                setupLayerToggles();
+                updateGraph();
+                hideOverlay();
+            } catch (error) {
+                console.error("Failed to fetch graph data:", error);
+                setStatus('error', 'Load Failed');
+                showOverlay('error', `Failed to load graph data for <strong>User '${datasetName}'</strong>.`);
+            }
+        }
+
+        function calculateStaticLayout(nodes) {
+            const xPaddingStart = 70; const xPaddingEnd = 150; const yPadding = 80;
+            const nodesByLayer = d3.group(nodes, d => d.layer);
+            const layers = Array.from(nodesByLayer.keys()).sort((a, b) => a - b);
+            const hasLayer0 = nodesByLayer.has(0);
+            layers.forEach((layerId, i) => {
+                const nodesInLayer = nodesByLayer.get(layerId) || [];
+                const nodeCountInLayer = nodesInLayer.length;
+                let x;
+                if (layerId === 0) { x = xPaddingStart; }
+                else {
+                    const higherLayersCount = hasLayer0 ? layers.length - 1 : layers.length;
+                    const higherLayerIndex = hasLayer0 ? i - 1 : i;
+                    if (higherLayersCount <= 1) { x = xPaddingStart + (width - xPaddingStart - xPaddingEnd) / 2; }
+                    else {
+                        const layerSpacing = (width - (xPaddingStart + 100) - xPaddingEnd) / (higherLayersCount - 1);
+                        x = (xPaddingStart + 100) + (higherLayerIndex * layerSpacing);
+                    }
+                }
+                const nodeSpacing = (nodeCountInLayer > 1) ? (height - 2 * yPadding) / (nodeCountInLayer - 1) : 0;
+
+                nodesInLayer.sort((a, b) => (a.generating_dimension || '').localeCompare(b.generating_dimension || '') || a.id.localeCompare(b.id));
+
+                nodesInLayer.forEach((node, j) => {
+                    node.x = x;
+                    node.y = (nodeCountInLayer > 1) ? yPadding + (j * nodeSpacing) : height / 2;
+                });
+            });
+        }
+
+        function setupLayerToggles() {
+            const layers = [...new Set(allGraphData.nodes.map(n => n.layer))].sort((a, b) => a - b);
+            layerTogglesContainer.innerHTML = '';
+            layers.forEach(layer => {
+                // Get total node count for the layer
+                const nodeCount = allGraphData.nodes.filter(n => n.layer === layer).length;
+                const labelEl = document.createElement('label');
+                // Reduced spacing
+                labelEl.className = 'flex items-center space-x-1.5 cursor-pointer';
+                labelEl.innerHTML = `
+                    <input type="checkbox" data-layer="${layer}" class="layer-toggle h-4 w-4 rounded bg-slate-600 border-slate-500 text-sky-500 focus:ring-sky-500" checked>
+                    <span style="color: ${colorScale(layer)};" class="font-medium">L${layer}</span>
+                    <span class="text-slate-400 text-xs">(${nodeCount})</span>`; // Added count
+                layerTogglesContainer.appendChild(labelEl);
+            });
+            d3.selectAll('.layer-toggle').on('change', updateGraph);
+        }
+
+        function updateGraph() {
+            const visibleLayers = new Set();
+            d3.selectAll('.layer-toggle').each(function () { if (this.checked) visibleLayers.add(parseInt(this.dataset.layer)); });
+
+            const selectedModelView = document.querySelector('input[name="model-view"]:checked').value;
+
+            const filteredNodes = allGraphData.nodes.filter(d => {
+                // Returns true if layer is visible AND (model_type matches OR it's a Shared node)
+                return visibleLayers.has(d.layer) &&
+                    (d.model_type === selectedModelView || d.model_type === 'Shared' || !d.model_type);
+            });
+            const filteredNodeIds = new Set(filteredNodes.map(d => d.id));
+            const filteredLinks = allGraphData.links.filter(d => d.source && d.target && filteredNodeIds.has(d.source.id) && filteredNodeIds.has(d.target.id));
+
+            const dimensionGroups = d3.group(filteredNodes.filter(d => d.layer >= 2 && d.generating_dimension), d => d.layer, d => d.generating_dimension);
+            const dimensionBoxesData = [];
+            dimensionGroups.forEach((nodesByDim, layer) => {
+                nodesByDim.forEach((nodes, dimName) => {
+                    const padding = 20, yPadding = 15;
+                    const yVals = nodes.map(n => n.y);
+                    const minX = d3.min(nodes, n => n.x) - padding;
+                    const maxX = d3.max(nodes, n => n.x) + padding;
+                    const minY = d3.min(yVals) - yPadding;
+                    const maxY = d3.max(yVals) + yPadding;
+                    dimensionBoxesData.push({
+                        id: `dim-box-${layer}-${dimName}`, x: minX, y: minY,
+                        width: maxX - minX, height: maxY - minY,
+                        label: dimName, labelX: (minX + maxX) / 2, labelY: minY - 5
+                    });
+                });
+            });
+
+            gDimensionBoxes.selectAll("rect").data(dimensionBoxesData, d => d.id).join("rect").attr("class", "dimension-box").attr("x", d => d.x).attr("y", d => d.y).attr("width", d => d.width).attr("height", d => d.height);
+            gDimensionBoxes.selectAll("text").data(dimensionBoxesData, d => d.id).join("text").attr("class", "dimension-label").attr("x", d => d.labelX).attr("y", d => d.labelY).text(d => d.label);
+            gLinks.selectAll("line").data(filteredLinks, d => `${d.source.id}-${d.target.id}`).join("line").attr("class", "link").attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y).attr("stroke", "#475569");
+            gNodes.selectAll("circle").data(filteredNodes, d => d.id).join("circle").attr("class", "node").attr("cx", d => d.x).attr("cy", d => d.y).attr("r", d => d.layer === 0 ? 4 : 6 + d.layer * 1.5).attr("fill", d => colorScale(d.layer)).attr("stroke", "#1e293b").attr("stroke-width", 2).on("click", onNodeClick).on("mouseover", onNodeMouseOver).on("mouseout", onNodeMouseOut).append("title").text(d => `L${d.layer}: ${d.title}`);
+            gLabels.selectAll("text").data(filteredNodes.filter(d => d.layer > 0), d => d.id).join("text").attr("class", "node-label").attr("x", d => d.x + 12).attr("y", d => d.y + 4).text(d => d.title).style("display", showLabelsToggle.checked ? "block" : "none");
+
+            // Group visible nodes by layer to get counts
+            const nodesInVisibleLayers = d3.group(filteredNodes, d => d.layer);
+
+            const visibleLayerData = Array.from(visibleLayers).map(layerId => ({
+                layer: layerId,
+                x: (filteredNodes.find(n => n.layer === layerId) || {}).x,
+                count: (nodesInVisibleLayers.get(layerId) || []).length // Get count of *visible* nodes
+            })).filter(d => d.x > 0 && d.count > 0); // Filter out empty or non-positioned layers
+
+            gLayerTitles.selectAll("text").data(visibleLayerData, d => d.layer).join("text").attr("class", "layer-title").attr("x", d => d.x).attr("y", 30).text(d => `Layer ${d.layer} (${d.count})`).on("click", (e, d) => onLayerTitleClick(d.layer));
+        }
+
+        function onNodeClick(event, d) {
+            if (currentSelectedNode && currentSelectedNode.id !== d.id) {
+                gNodes.selectAll("circle").filter(n => n.id === currentSelectedNode.id).transition().duration(150).attr("r", n => n.layer === 0 ? 4 : 6 + n.layer * 1.5).attr("stroke", "#1e293b");
+            }
+            event.stopPropagation();
+            currentSelectedNode = d;
+
+            // --- START: Modified Logic ---
+
+            // 1. Find all source nodes (N nodes)
+            const sourceNodes = [];
+            allGraphData.links.forEach(l => {
+                // Check if the link's target is the clicked node (d)
+                if (l.target.id === d.id) {
+                    sourceNodes.push(l.source);
+                }
+            });
+
+            // 2. Generate HTML for the clicked (N+1) node
+            let dimensionHTML = d.layer >= 2 && d.generating_dimension ? `<div class="mt-4 pt-4 border-t border-slate-700"><h4 class="font-semibold text-slate-400 mb-1">Generating Dimension</h4><p><a href="#" onclick="showDimensionDetails(${d.layer}, '${d.generating_dimension}'); return false;" class="text-sky-400 hover:underline">${d.generating_dimension}</a></p></div>` : '';
+
+            let clickedNodeHtml = `
+                <div class="p-3 bg-slate-700/50 rounded-lg">
+                    <p class="mb-2"><span class="font-semibold text-slate-400">Layer:</span> <span class="font-bold py-0.5 px-1.5 rounded-full text-xs" style="background-color: ${colorScale(d.layer)}; color: #020617;">L${d.layer}</span></p>
+                    <h3 class="font-bold text-lg text-white mb-2">${d.title}</h3>
+                    <p class="text-slate-300 whitespace-pre-wrap">${d.content}</p>
+                    ${dimensionHTML}
+                </div>`;
+
+            // 3. Generate HTML for the source (N) nodes, if any
+            let sourceNodesHtml = '';
+            if (sourceNodes.length > 0) {
+                // Sort for consistent display
+                sourceNodes.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+
+                // Get layer from the first source (assumes all sources are from same layer)
+                const sourceLayer = sourceNodes[0].layer;
+
+                sourceNodesHtml = `
+                    <div class="mt-4">
+                        <h4 class="text-md font-semibold text-slate-300 mb-2 border-b border-slate-600 pb-1">
+                            Source Nodes (Layer ${sourceLayer} - ${sourceNodes.length} found)
+                        </h4>
+                        <!-- Add a scrollable area in case of many source nodes -->
+                        <div class="space-y-3 max-h-80 overflow-y-auto pr-1"> 
+                            ${sourceNodes.map(node => `
+                                <div class="p-2 bg-slate-800/60 rounded-md border border-slate-700">
+                                    <p class="mb-1">
+                                        <span class="font-medium" style="color: ${colorScale(node.layer)};">L${node.layer}:</span>
+                                        <span class="text-white font-medium">${node.title}</span>
+                                    </p>
+                                    <p class="text-slate-300 text-sm whitespace-pre-wrap">${node.content}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>`;
+            }
+
+            // 4. Set the info panel content
+            infoTitle.textContent = "Node Information";
+            infoContent.innerHTML = clickedNodeHtml + sourceNodesHtml;
+
+            // --- END: Modified Logic ---
+
+            highlightConnections(d);
+        }
+
+        function onLayerTitleClick(layerId) {
+            clearHighlight();
+            const dimensions = allGraphData.dimensions[layerId] || [];
+            infoTitle.textContent = `Layer ${layerId} Dimensions`;
+            infoContent.innerHTML = dimensions.length > 0 ? dimensions.map(dim => `<div class="p-3 bg-slate-700/50 rounded-lg"><h3 class="font-bold text-md text-white mb-1">${dim.title}</h3><p class="text-slate-400">${dim.description}</p></div>`).join('') : `<p class="text-slate-500 italic">No dimension data available for Layer ${layerId}.</p>`;
+        }
+
+        window.showDimensionDetails = (layerId, dimensionTitle) => {
+            clearHighlight();
+            const dim = (allGraphData.dimensions[layerId] || []).find(d => d.title === dimensionTitle);
+            infoTitle.textContent = "Dimension Details";
+            infoContent.innerHTML = dim ? `<div class="p-3 bg-slate-700/50 rounded-lg"><p class="mb-2"><span class="font-semibold text-slate-400">From:</span> <span class="font-bold">Layer ${layerId}</span></p><h3 class="font-bold text-lg text-white mb-2">${dim.title}</h3><p class="text-slate-300">${dim.description}</p></div>` : `<p class="text-slate-500 italic">Could not find details for "${dimensionTitle}".</p>`;
+        };
+
+        function highlightConnections(selectedNode) {
+            const connectedNodeIds = new Set([selectedNode.id]);
+            allGraphData.links.forEach(l => {
+                if (l.source.id === selectedNode.id) connectedNodeIds.add(l.target.id);
+                if (l.target.id === selectedNode.id) connectedNodeIds.add(l.source.id);
+            });
+            gNodes.selectAll("circle").attr('opacity', n => connectedNodeIds.has(n.id) ? 1.0 : 0.15);
+            gLinks.selectAll("line").attr('stroke-opacity', l => (l.source.id === selectedNode.id || l.target.id === selectedNode.id) ? 0.8 : 0.05).attr('stroke', l => (l.source.id === selectedNode.id || l.target.id === selectedNode.id) ? '#38bdf8' : '#475569');
+            gLabels.selectAll("text").attr('opacity', l => connectedNodeIds.has(l.id) ? 1.0 : 0.15);
+
+            gNodes.selectAll("circle").filter(n => n.id === selectedNode.id).raise().attr("stroke", "#38bdf8").attr("r", (selectedNode.layer === 0 ? 4 : 6 + selectedNode.layer * 1.5) * 1.5);
+            gLabels.selectAll("text").filter(label_d => label_d.id === selectedNode.id).raise();
+        }
+
+        function clearHighlight() {
+            if (!currentSelectedNode) return;
+            gNodes.selectAll("circle").filter(n => n.id === currentSelectedNode.id).transition().duration(150).attr("r", n => n.layer === 0 ? 4 : 6 + n.layer * 1.5).attr("stroke", "#1e293b");
+            currentSelectedNode = null;
+            gNodes.selectAll("circle").attr('opacity', 1);
+            gLinks.selectAll("line").attr('stroke-opacity', 0.2).attr('stroke', '#475569');
+            gLabels.selectAll("text").attr('opacity', 1);
+            infoTitle.textContent = "Information";
+            infoContent.innerHTML = `<p class="text-slate-500 italic">Click on a node or a layer title to see details.</p>`;
+        }
+
+        function onNodeMouseOver(event, d) {
+            d3.select(this).raise().transition().duration(100).attr("r", (d.layer === 0 ? 4 : 6 + d.layer * 1.5) * 1.5).attr("stroke", "#94a3b8");
+            gLabels.selectAll("text").filter(label_d => label_d.id === d.id).raise();
+        }
+
+        function onNodeMouseOut(event, d) {
+            if (currentSelectedNode && currentSelectedNode.id === d.id) return;
+            d3.select(this).transition().duration(100).attr("r", n => n.layer === 0 ? 4 : 6 + n.layer * 1.5).attr("stroke", "#1e293b");
+        }
+        svg.on('click', clearHighlight);
+
+        function setStatus(status, text) {
+            const indicator = document.getElementById('status-indicator');
+            const statusText = document.getElementById('status-text');
+            indicator.className = 'w-3 h-3 rounded-full';
+            if (status === 'ok') indicator.classList.add('bg-green-500');
+            else if (status === 'error') indicator.classList.add('bg-red-500');
+            else indicator.classList.add('bg-yellow-500');
+            statusText.textContent = text || 'Status';
+        }
+
+        function showOverlay(type, message, showRetry = false) {
+            const overlay = document.getElementById('overlay');
+            let html = '';
+            if (type === 'loading') {
+                html = `<div class="text-center p-8 max-w-lg"><svg class="animate-spin h-8 w-8 text-sky-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p class="mt-3 text-slate-400">${message || 'Loading...'}</p></div>`;
+            } else if (type === 'error') {
+                html = `<div class="text-center p-8 max-w-lg"><svg class="h-12 w-12 text-red-400 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg><h3 class="mt-2 text-lg font-medium text-white">An Error Occurred</h3><p class="mt-2 text-sm text-slate-400">${message}</p>`;
+                if (showRetry) {
+                    html += `<button id="retry-btn" class="mt-6 bg-sky-600 text-white font-semibold px-4 py-2 rounded-md hover:bg-sky-500 transition">Retry Connection</button>`;
+                }
+            }
+            overlay.innerHTML = html;
+            if (showRetry) { document.getElementById('retry-btn').addEventListener('click', fetchDatasets); }
+            overlay.style.opacity = '1';
+            overlay.style.pointerEvents = 'auto';
+        }
+
+        function hideOverlay() {
+            const overlay = document.getElementById('overlay');
+            overlay.style.opacity = '0';
+            overlay.style.pointerEvents = 'none';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchDatasets();
+            datasetSelector.addEventListener('change', (event) => loadGraph(event.target.value));
+            showLabelsToggle.addEventListener('change', updateGraph);
+            document.querySelectorAll('input[name="model-view"]').forEach(el => {
+                el.addEventListener('change', updateGraph);
+            });
+            window.addEventListener('resize', () => {
+                width = document.getElementById('graph-container').clientWidth;
+                height = document.getElementById('graph-container').clientHeight;
+                svg.attr("width", width).attr("height", height);
+                calculateStaticLayout(allGraphData.nodes);
+                updateGraph();
+            });
+        });
+    </script>
+</body>
+
+</html>
