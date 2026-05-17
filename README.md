@@ -1,6 +1,9 @@
-# LingoJourn Monitoring System & Hierarchical Cognitive Graph Pipeline (v2)
+# PERSONALIZED THINKING MODEL
 
-An advanced, end-to-end cognitive-behavioral analysis system designed to ingest raw student narrative journals, extract structured patterns, and reconstruct them into an interactive **4-Layer Hierarchical Knowledge Graph (Thinking Model)**. By leveraging state-of-the-art semantic embeddings, clustering algorithms, and Google's Gemini models, the application empowers educators and administrators to monitor, visualize, and dynamically update a student's cognitive and behavioral evolution.
+An advanced, end-to-end cognitive-behavioral analysis system designed to ingest raw student narrative journals, extract structured patterns, and reconstruct them into an interactive **4-Layer Hierarchical Knowledge Graph (Thinking Model/Cognitive Twin)**. By leveraging state-of-the-art semantic embeddings, clustering algorithms, and Google's Gemini models, the application empowers educators and administrators to monitor, visualize, and dynamically update a person's cognitive and behavioral evolution.
+
+## 📃 Paper
+[https://doi.org/10.48550/arXiv.2605.04761](https://arxiv.org/abs/2605.04761)
 
 ---
 
